@@ -1,0 +1,90 @@
+---
+title: "Machine Learning Peer Review Project"
+author: "peterzhao"
+date: "2020/7/4"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load the dataset 
+## Impute Data
+First, we shall load the dataset and examine it. We see that there are 13737 entries in the training set and 20 entries in the testing set.Variables are 159 in two sets. We will use the training set to build the model and predict the dataset.
+```{r}
+library(caret);library(tidyverse)
+data <- read.csv("~/Desktop/pml-training.csv",na.strings="")[,-1]
+testing <- read.csv("~/Desktop/pml-testing.csv",na.strings="")[,-1]
+dim(data);dim(testing)
+```
+
+## Split the original training data into training and validation
+
+To improve the accuarcy of the model, we shall apply vaildation in building the model. Therefore, we split the original training data into training and vaildation. 70% of entires belong to the training set, and the remain of them belong to the validation set.
+```{r}
+inTrain <- createDataPartition(y=data$classe,p=0.7,list=F)
+training <- data[inTrain,]; validation <- data[-inTrain,]
+```
+
+# Basic Preprocessing
+## Remove Columns without Variation
+We need to do some preprocessing for our dataset, so that our model can fit better. First, we look at the variables that do not change accross the dataset and throw them out, as they are not helpful for our reserach. 
+```{r}
+nsv <- nearZeroVar(training)
+training <- training[,-nsv]
+```
+## Remove NA
+It is important to deal with NA(Notice that there are lots of NA in this dataset). In this study, we use the following method to delete na values, as we find that NA values are concentrated in several columns only.
+```{r}
+na_number<-function(list){sum(is.na(list))}
+na_num<-lapply(training,na_number)
+training <- training[,-which(na_num>0)]
+```
+## Convet the Outcome into Factors
+Then, we convert the classe variables into factors.
+```{r}
+training$classe <- sapply(training$classe,as.factor)
+validation$classe <- sapply(validation$classe,as.factor)
+```
+
+# Build the Model
+## the Tree Model
+To shart it simply, we regress the outcome "classe" on all other variables using the tree model. However, the result is not good, as the accuracy is below 0.5. The outsample error rate, which is one minus the accuracy rate, is 0.54 roughly. We would better not using this model to predict the outcome.
+```{r}
+# fitting model
+ mod1 <- train(classe ~., data=training, method="rpart")
+# Predicting
+ pred1 <- predict(mod1, validation)
+# Testing
+ confusionMatrix(pred1, validation$classe)
+ sum(pred1!=validation$classe)/nrow(validation)
+```
+
+## The RandomForest Model
+
+Suprisingly, the random forest model fits very well. The accuracy is above 99%, so we decide to apply this model for our predcition.
+```{r}
+# fitting model
+library(randomForest)
+ mod2 <- randomForest(classe ~., data=training)
+# Predicting
+ pred2 <- predict(mod2, validation)
+# Testing
+ confusionMatrix(pred2, validation$classe)
+ sum(pred2!=validation$classe)/nrow(validation)
+```
+
+# Prediction
+we apply the random forest model for our testing data.
+```{r}
+predict(mod2,newdata=testing)
+```
+
+
+
+
+
+
